@@ -2,8 +2,8 @@
   "schema": 1,
   "courseId": 2078,
   "repository": "LearningOS/2026a-arceos-darkyellowcat",
-  "commit": "2dacd78864b01faaf98fc22a68a4947d6f06ccdb",
-  "score": 200,
+  "commit": "8a14b6c08174a9911a21b79712305862da990916",
+  "score": 300,
   "totalScore": 600,
   "exercises": [
     {
@@ -23,8 +23,8 @@
     {
       "name": "alt_alloc",
       "max": 100,
-      "score": 0,
-      "status": "fail",
+      "score": 100,
+      "status": "pass",
       "exitCode": 0
     },
     {
@@ -50,9 +50,9 @@
     }
   ],
   "student": "darkyellowcat",
-  "runId": "42995915731",
+  "runId": "42997664450",
   "runAttempt": "1",
   "upload": {
-    "status": "accepted"
+    "status": "pending"
   }
 }
