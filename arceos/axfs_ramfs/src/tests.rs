@@ -4,6 +4,28 @@ use axfs_vfs::{VfsError, VfsNodeType, VfsResult};
 
 use crate::*;
 
+#[test]
+fn test_rename_preserves_file() {
+    let ramfs = RamFileSystem::new();
+    let root = ramfs.root_dir();
+    root.create("dir", VfsNodeType::Dir).unwrap();
+
+    for (src, dst) in [("f1", "f2"), ("dir/f1", "dir/f2")] {
+        root.create(src, VfsNodeType::File).unwrap();
+        let file = root.clone().lookup(src).unwrap();
+        file.write_at(0, b"hello").unwrap();
+
+        root.rename(src, dst).unwrap();
+
+        assert_eq!(root.clone().lookup(src).err(), Some(VfsError::NotFound));
+        let renamed = root.clone().lookup(dst).unwrap();
+        assert!(Arc::ptr_eq(&file, &renamed));
+        let mut buf = [0; 5];
+        assert_eq!(renamed.read_at(0, &mut buf).unwrap(), 5);
+        assert_eq!(&buf, b"hello");
+    }
+}
+
 fn test_ramfs_ops(devfs: &RamFileSystem) -> VfsResult {
     const N: usize = 32;
     const N_HALF: usize = N / 2;

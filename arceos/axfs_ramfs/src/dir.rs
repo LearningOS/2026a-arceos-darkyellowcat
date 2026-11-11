@@ -70,6 +70,66 @@ impl DirNode {
 }
 
 impl VfsNodeOps for DirNode {
+    /// Renames a node from `src_path` to `dst_path` in this directory.
+    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+        let (src_name, src_rest) = split_path(src_path);
+        let (dst_name, dst_rest) = split_path(dst_path);
+
+        match (src_rest, dst_rest) {
+            // 源路径和目标路径都还有剩余部分：
+            // 说明需要进入相同的子目录继续处理
+            (Some(src_rest), Some(dst_rest)) => {
+                if src_name != dst_name {
+                    return Err(VfsError::Unsupported);
+                }
+
+                let subdir = self.children
+                    .read()
+                    .get(src_name)
+                    .cloned()
+                    .ok_or(VfsError::NotFound)?;
+
+                subdir.rename(src_rest, dst_rest)
+            }
+
+            // 源和目标都位于当前目录
+            (None, None) => {
+                if src_name.is_empty()
+                    || dst_name.is_empty()
+                    || src_name == "."
+                    || src_name == ".."
+                    || dst_name == "."
+                    || dst_name == ".."
+                {
+                    return Err(VfsError::InvalidInput);
+                }
+
+                if src_name == dst_name {
+                    return Ok(());
+                }
+
+                // 获取写锁
+                let mut children = self.children.write();
+
+                // 检查目标名称是否已存在
+                if children.contains_key(dst_name) {
+                    return Err(VfsError::AlreadyExists);
+                }
+
+                let node = children
+                    .remove(src_name)
+                    .ok_or(VfsError::NotFound)?;
+
+                children.insert(String::from(dst_name), node);
+
+                Ok(())
+            }
+
+            // 路径结构不一致，暂不支持跨目录移动
+            _ => Err(VfsError::Unsupported),
+        }
+    }
+
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         Ok(VfsNodeAttr::new_dir(4096, 0))
     }
