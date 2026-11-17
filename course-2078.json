@@ -2,8 +2,8 @@
   "schema": 1,
   "courseId": 2078,
   "repository": "LearningOS/2026a-arceos-darkyellowcat",
-  "commit": "7a3976d5c00c5a84338cac464b28700f2b87fb14",
-  "score": 400,
+  "commit": "e244ff674c8de848f544b533f05b68555becea86",
+  "score": 500,
   "totalScore": 600,
   "exercises": [
     {
@@ -37,8 +37,8 @@
     {
       "name": "sys_map",
       "max": 100,
-      "score": 0,
-      "status": "fail",
+      "score": 100,
+      "status": "pass",
       "exitCode": 0
     },
     {
@@ -50,9 +50,9 @@
     }
   ],
   "student": "darkyellowcat",
-  "runId": "43429940347",
+  "runId": "44012582724",
   "runAttempt": "1",
   "upload": {
-    "status": "accepted"
+    "status": "pending"
   }
 }
