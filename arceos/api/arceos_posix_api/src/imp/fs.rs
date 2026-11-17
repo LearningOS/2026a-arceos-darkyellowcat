@@ -75,6 +75,17 @@ impl FileLike for File {
     }
 }
 
+/// Read from the file indicated by `fd` at `offset` into `buf`.
+pub fn sys_read_at(
+    fd: c_int,
+    offset: u64,
+    buf: &mut [u8],
+) -> LinuxResult<usize> {
+    let file = File::from_fd(fd)?;
+    let inner = file.inner.lock();
+    Ok(inner.read_at(offset, buf)?)
+}
+
 /// Convert open flags to [`OpenOptions`].
 fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
     let flags = flags as u32;

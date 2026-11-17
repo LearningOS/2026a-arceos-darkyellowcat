@@ -7,6 +7,7 @@ extern crate alloc;
 
 #[macro_use]
 extern crate axlog;
+extern crate core;
 
 mod task;
 mod syscall;

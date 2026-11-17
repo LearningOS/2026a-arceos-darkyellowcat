@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use core::cmp::PartialEq;
 use core::ffi::{c_void, c_char, c_int};
 use axhal::arch::TrapFrame;
 use axhal::trap::{register_trap_handler, SYSCALL};
@@ -8,6 +9,9 @@ use axtask::current;
 use axtask::TaskExtRef;
 use axhal::paging::MappingFlags;
 use arceos_posix_api as api;
+use axhal::mem::{PAGE_SIZE_4K, VirtAddr};
+use memory_addr::VirtAddrRange;
+use arceos_posix_api::sys_read_at;
 
 const SYS_IOCTL: usize = 29;
 const SYS_OPENAT: usize = 56;
@@ -45,7 +49,7 @@ macro_rules! syscall_body {
 }
 
 bitflags::bitflags! {
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Eq)]
     /// permissions for sys_mmap
     ///
     /// See <https://github.com/bminor/glibc/blob/master/bits/mman.h>
@@ -76,7 +80,7 @@ impl From<MmapProt> for MappingFlags {
 }
 
 bitflags::bitflags! {
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq, Eq)]
     /// flags for sys_mmap
     ///
     /// See <https://github.com/bminor/glibc/blob/master/bits/mman.h>
@@ -138,9 +142,89 @@ fn sys_mmap(
     prot: i32,
     flags: i32,
     fd: i32,
-    _offset: isize,
+    offset: isize,
 ) -> isize {
-    unimplemented!("no sys_mmap!");
+    syscall_body!(sys_mmap, {
+        // 1. 检查 addr 和 length
+        if !addr.is_null() || length == 0 {
+            return Err(LinuxError::EINVAL);
+        }
+
+        // 2. 解析 prot 和 flags
+        let prot = MmapProt::from_bits(prot).ok_or(LinuxError::EINVAL)?;
+        let flags = MmapFlags::from_bits(flags).ok_or(LinuxError::EINVAL)?;
+
+        // 3. 检查 MAP_PRIVATE
+        if flags != MmapFlags::MAP_PRIVATE {
+            return Err(LinuxError::EINVAL);
+        }
+
+        // 4. 检查 offset
+        if offset < 0 || offset as usize % PAGE_SIZE_4K != 0 {
+            return Err(LinuxError::EINVAL);
+        }
+
+        // 5. 计算 mapped_size
+        let mapped_size = length
+            .checked_add(PAGE_SIZE_4K - 1)
+            .ok_or(LinuxError::ENOMEM)?
+            & !(PAGE_SIZE_4K - 1);
+
+        // 1. 获取当前任务的地址空间
+        let curr = current();
+        let aspace = curr.task_ext().aspace.clone();
+        let mut uspace = aspace.lock();
+
+        // 2. 确定搜索范围
+        let limit = VirtAddrRange::from_start_size(
+            uspace.base(),
+            uspace.size(),
+        );
+
+        // 3. 寻找空闲虚拟地址
+        let hint = uspace.base();
+
+        let mapped_addr = uspace
+            .find_free_area(hint, mapped_size, limit)
+            .ok_or(LinuxError::ENOMEM)?;
+
+        // 4. 建立映射
+        uspace
+            .map_alloc(
+                mapped_addr,
+                mapped_size,
+                MappingFlags::from(prot),
+                true,
+            )
+            .map_err(|_| LinuxError::ENOMEM)?;
+
+
+        let mut buffer = alloc::vec![0u8; length];
+
+        // 读取文件内容
+        let read_len = match api::sys_read_at(
+            fd,
+            offset as u64,
+            &mut buffer,
+        ) {
+            Ok(n) => n,
+            Err(e) => {
+                let _ = uspace.unmap(mapped_addr, mapped_size);
+                return Err(e);
+            }
+        };
+
+        // 将实际读取的数据写入用户地址空间
+        if read_len > 0 {
+            if uspace.write(mapped_addr, &buffer[..read_len]).is_err() {
+                let _ = uspace.unmap(mapped_addr, mapped_size);
+                return Err(LinuxError::EFAULT);
+            }
+        }
+
+        Ok(mapped_addr.as_usize() as isize)
+
+    })
 }
 
 fn sys_openat(dfd: c_int, fname: *const c_char, flags: c_int, mode: api::ctypes::mode_t) -> isize {
