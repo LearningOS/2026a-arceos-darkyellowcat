@@ -2,8 +2,8 @@
   "schema": 1,
   "courseId": 2078,
   "repository": "LearningOS/2026a-arceos-darkyellowcat",
-  "commit": "e244ff674c8de848f544b533f05b68555becea86",
-  "score": 500,
+  "commit": "2abccf0b246692be7cf438c1b5f1151e6820120a",
+  "score": 600,
   "totalScore": 600,
   "exercises": [
     {
@@ -44,15 +44,15 @@
     {
       "name": "simple_hv",
       "max": 100,
-      "score": 0,
-      "status": "fail",
+      "score": 100,
+      "status": "pass",
       "exitCode": 0
     }
   ],
   "student": "darkyellowcat",
-  "runId": "44012582724",
+  "runId": "44114640705",
   "runAttempt": "1",
   "upload": {
-    "status": "accepted"
+    "status": "pending"
   }
 }
