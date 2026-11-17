@@ -102,16 +102,34 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
             }
         },
         Trap::Exception(Exception::IllegalInstruction) => {
-            panic!("Bad instruction: {:#x} sepc: {:#x}",
-                stval::read(),
-                ctx.guest_regs.sepc
-            );
-        },
+            // 获取发生异常的指令机器码
+            let inst = stval::read();
+
+            // 确认是我们预期处理的指令
+            assert_eq!(inst, 0xf140_25f3);
+
+            // 模拟 csrr a1, mhartid 的执行结果
+            ctx.guest_regs.gprs.set_reg(A1, 0x1234);
+
+            // 跳过已经模拟执行的 32 位指令
+            ctx.guest_regs.sepc += 4;
+
+            ax_println!("Emulate csrr a1, mhartid");
+        }
         Trap::Exception(Exception::LoadGuestPageFault) => {
-            panic!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
-                stval::read(),
-                ctx.guest_regs.sepc
-            );
+            // 获取发生 Guest Page Fault 的地址
+            let fault_addr = stval::read();
+
+            // 确认是预期的虚拟设备地址
+            assert_eq!(fault_addr, 0x40);
+
+            // 模拟虚拟设备返回数据
+            ctx.guest_regs.gprs.set_reg(A0, 0x6688);
+
+            // 跳过已经模拟执行的 ld 指令
+            ctx.guest_regs.sepc += 4;
+
+            ax_println!("Emulate guest device read: {:#x}", fault_addr);
         },
         _ => {
             panic!(
